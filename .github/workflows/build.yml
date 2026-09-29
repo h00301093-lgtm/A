@@ -26,7 +26,7 @@ jobs:
         run: |
           import glob, os, zipfile, sys
           print("File nel repository:", os.listdir("."))
-          zips = glob.glob("/*.zip", recursive=True)
+          zips = [f for f in files if f.lower().endswith(".zip")]
           if not zips:
               sys.exit("ERRORE: nessun file .zip trovato nel repository")
           print("Zip usato:", zips[0])
