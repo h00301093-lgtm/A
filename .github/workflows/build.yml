@@ -1,0 +1,49 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Estrai il progetto dallo zip
+        shell: python
+        run: |
+          import os, zipfile, sys
+          files = os.listdir(".")
+          print("File nel repository:", files)
+          zips = [f for f in files if f.lower().endswith(".zip")]
+          if not zips:
+              sys.exit("ERRORE: nessun file zip trovato")
+          print("Zip usato:", zips[0])
+          zipfile.ZipFile(zips[0]).extractall("src")
+          proj = ""
+          for root, dirs, names in os.walk("src"):
+              if "settings.gradle.kts" in names:
+                  proj = root
+                  break
+          if not proj:
+              sys.exit("ERRORE: nello zip manca settings.gradle.kts")
+          print("Progetto trovato in:", proj)
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write("PROJ=" + proj + "\n")
+      - name: Build debug APK
+        run: gradle --no-daemon -p "$PROJ" :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LongScreen-apk
+          path: ${{ env.PROJ }}/app/build/outputs/apk/debug/
+          retention-days: 7
