@@ -19,15 +19,25 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
       - name: Estrai il progetto dallo zip
+        shell: python
         run: |
-          Z=$(ls *.zip | head -1)
-          ./gradlew --no-daemon :app:assembleDebug
-          Z=$(ls *.zip | head -1)
-          unzip -q -o "$Z" -d src
-          P=$(dirname "$(find src -name settings.gradle.kts | head -1)")
-          echo "Progetto trovato in: $P"
-          echo "PROJ=$P" >> "$GITHUB_ENV"
+          import glob, os, zipfile, sys
+          print("File nel repository:", os.listdir("."))
+          zips = glob.glob("/*.zip", recursive=True)
+          if not zips:
+              sys.exit("ERRORE: nessun file .zip trovato nel repository")
+          print("Zip usato:", zips[0])
+          zipfile.ZipFile(zips[0]).extractall("src")
+          found = glob.glob("src//settings.gradle.kts", recursive=True)
+          if not found:
+              sys.exit("ERRORE: nello zip non c'è settings.gradle.kts")
+          proj = os.path.dirname(found[0])
+          print("Progetto trovato in:", proj)
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write("PROJ=" + proj + "\n")
       - name: Build debug APK
         run: gradle --no-daemon -p "$PROJ" :app:assembleDebug
       - uses: actions/upload-artifact@v4
